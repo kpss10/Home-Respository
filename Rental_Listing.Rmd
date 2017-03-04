@@ -1,0 +1,97 @@
+---
+title: "Renthop Listing"
+author: "Kanwal"
+date: "4 March 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Renthop feature extraction
+
+Browsing the data, I think the 'description', 'feature' and 'photo' columns should contain pretty valuable information, but they are a little bit hard to cope with. Here I tried to deal with 'feature' colums
+
+Let's play with the renthop data.
+
+## Load Data
+```{r echo=TRUE, warning=FALSE, message = FALSE}
+require(rjson)
+require(dplyr)
+require(purrr)
+require(knitr)
+require(stringr)
+
+train = fromJSON(file = "C:/datasets/train.json")
+test = fromJSON(file = "C:/datasets/test.json")
+
+column <- setdiff(names(train), c("photos", "features"))
+train <- map_at(train, column, unlist) %>% tibble::as_tibble(.)
+# Number of listing in train set
+#nrow(train)
+test <- map_at(test, column, unlist) %>% tibble::as_tibble(.)
+# Number of listing in test set
+#nrow(test)
+```
+
+## Count Features
+
+```{r eval = TRUE, echo=FALSE, message=FALSE}
+# Total number of feature in train set
+length(unique(train$features))
+```
+
+```{r eval = TRUE, echo=TRUE, message=FALSE}
+# Summarize count of features
+feature = data.frame(feature = tolower(unlist(train$features))) %>% # convert all features to lower case
+  group_by(feature) %>%
+  summarise(feature_count = n()) %>%
+  arrange(desc(feature_count)) %>%
+  filter(feature_count >= 50)
+
+kable(feature, caption = "Feature Count")
+```
+
+We can easily observe from the table:-- 
+- Among 10254 unique feature tags, most features are from top 10 features
+- only 89 features show more than 50 times in train set.
+- Among the list of top 89 features, many of them overlap each other.
+
+## Synonmic features
+
+```{r eval = TRUE, echo=TRUE, message=FALSE}
+feature %>%
+  filter(str_detect(feature, 'wood')) %>%
+  kable(caption = "hardwood")
+
+
+# Laundry in unit
+feature %>%
+  filter(str_detect(feature, paste(c('laundry', 'dryer', 'washer'), collapse="|"))) %>%
+  filter(!str_detect(feature, "dishwasher")) %>%
+  kable(caption = "Laundry in unit")
+
+# Roof deck
+feature %>%
+  filter(str_detect(feature, 'roof')) %>%
+  kable(caption = "Roof Deck")
+
+# Outdoor space
+feature %>%
+  filter(str_detect(feature, 'outdoor')) %>%
+  kable(caption = "Outdoor Space")
+
+# Garden
+feature %>%
+  filter(str_detect(feature, 'garden')) %>%
+  kable(caption = "Garden")
+
+# Park
+feature %>%
+  filter(str_detect(feature, 'park')) %>%
+  kable(caption = "Parking")
+````
+
+  
+**Therefore, we can transform the features into categorial data, and reduce the number of categories by setting a cutoff count and combning features.**
